@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import { Users, Calendar, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Users, Calendar, Image as ImageIcon, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 import { Reservation } from "../types";
 
 interface AdminDashboardProps {
@@ -7,7 +8,11 @@ interface AdminDashboardProps {
   deleteReservation: (id: string) => void;
 }
 
+type SortKey = keyof Reservation;
+
 export default function AdminDashboard({ reservations, deleteReservation }: AdminDashboardProps) {
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+
   const today = new Date().toISOString().split('T')[0];
   const todayReservations = reservations.filter(r => r.date === today).length;
 
@@ -16,6 +21,38 @@ export default function AdminDashboard({ reservations, deleteReservation }: Admi
     { label: "Total Reservaciones", value: reservations.length.toString(), icon: Users },
     { label: "Fotos en Galería", value: "5", icon: ImageIcon },
   ];
+
+  const sortedReservations = [...reservations].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const { key, direction } = sortConfig;
+    
+    let aValue = a[key];
+    let bValue = b[key];
+
+    if (key === 'pax') {
+      aValue = parseInt(aValue.toString().replace('+', ''), 10);
+      bValue = parseInt(bValue.toString().replace('+', ''), 10);
+    }
+
+    if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const requestSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+    if (sortConfig?.key !== columnKey) {
+      return <ArrowUpDown size={14} className="opacity-30" />;
+    }
+    return sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
 
   return (
     <section className="pt-32 pb-24 min-h-screen bg-stone-50 dark:bg-neutral-950 text-stone-800 dark:text-stone-300 transition-colors duration-300">
@@ -50,23 +87,48 @@ export default function AdminDashboard({ reservations, deleteReservation }: Admi
               <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="bg-stone-50 dark:bg-neutral-950 text-stone-500 dark:text-stone-400 text-sm uppercase tracking-wider">
-                    <th className="p-4 font-medium">Nombre</th>
-                    <th className="p-4 font-medium">Fecha</th>
-                    <th className="p-4 font-medium">Hora</th>
-                    <th className="p-4 font-medium">Personas</th>
-                    <th className="p-4 font-medium">Estado</th>
+                    <th className="p-4 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => requestSort('name')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Nombre</span>
+                        <SortIcon columnKey="name" />
+                      </div>
+                    </th>
+                    <th className="p-4 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => requestSort('date')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Fecha</span>
+                        <SortIcon columnKey="date" />
+                      </div>
+                    </th>
+                    <th className="p-4 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => requestSort('time')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Hora</span>
+                        <SortIcon columnKey="time" />
+                      </div>
+                    </th>
+                    <th className="p-4 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => requestSort('pax')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Personas</span>
+                        <SortIcon columnKey="pax" />
+                      </div>
+                    </th>
+                    <th className="p-4 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => requestSort('status')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Estado</span>
+                        <SortIcon columnKey="status" />
+                      </div>
+                    </th>
                     <th className="p-4 font-medium text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5 dark:divide-white/5">
-                  {reservations.length === 0 ? (
+                  {sortedReservations.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-stone-500 dark:text-stone-400">
                         No hay reservaciones registradas.
                       </td>
                     </tr>
                   ) : (
-                    reservations.map((res) => (
+                    sortedReservations.map((res) => (
                       <tr key={res.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                         <td className="p-4 text-stone-900 dark:text-white">{res.name}</td>
                         <td className="p-4">{res.date}</td>
